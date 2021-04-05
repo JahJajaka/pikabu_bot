@@ -1,8 +1,14 @@
+#NLP models
+models/
+
+#Docker envs
+*.env
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
-
+*.code-workspace
 # C extensions
 *.so
 
