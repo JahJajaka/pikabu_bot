@@ -21,23 +21,8 @@ async def send_welcome(message: types.Message):
     """
     This handler will be called when user sends `/start` or `/help` command
     """
-    await message.reply("Hi!\nI'm Bender test")
+    await message.reply("привет!\nЯ русскоговорящий бот тренированный на Pikabu.\nПочитай вот тут, если хочешь узнать подробности:\nhttps://habr.com/en/company/icl_services/blog/548244/")
 
-@dp.message_handler(commands=['set_webhook'])
-async def send_welcome(message: types.Message):
-    """
-    setup webhook to send new messages to api
-    """
-    await bot.set_webhook('http://69.6.22.117:8000/chat')
-    await message.reply("new webhook is setup")
-
-@dp.message_handler(commands=['delete_webhook'])
-async def send_welcome(message: types.Message):
-    """
-    setup webhook to send new messages to api
-    """
-    await bot.delete_webhook()
-    await message.reply("new webhook is deleted")
 
 @dp.channel_post_handler()
 @dp.message_handler()
