@@ -39,6 +39,7 @@ async def send_welcome(message: types.Message):
     await bot.delete_webhook()
     await message.reply("new webhook is deleted")
 
+@dp.channel_post_handler()
 @dp.message_handler()
 async def answer(message: types.Message):
     logger.info(f'New message received from {message.chat.id}')
