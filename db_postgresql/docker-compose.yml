@@ -3,7 +3,7 @@ services:
     postgresql:
         image: postgres    
         env_file: 
-            - C:\Users\evgeniic\py_envs\pikabu_bot\db_postgresql\dev.env 
+            - dev.env 
         volumes:
             - ./init.sql:/docker-entrypoint-initdb.d/init.sql
         ports:

@@ -6,9 +6,9 @@ services:
       context: ../chatbot_ru/talker
     volumes:
         - type: bind
-          source: c:/Users/evgeniic/py_envs/pikabu_bot/chatbot_ru/models
+          source: path_to_models
           target: /talker/models
     env_file: 
-      - C:\Users\evgeniic\py_envs\pikabu_bot\chatbot_ru\dev.env            
+      - dev.env            
     container_name: talker
     tty: true
