@@ -1,10 +1,10 @@
 
 from os import getenv
 import logging
-from chat import NLP
 from aiogram import Bot, Dispatcher, executor, types
-from database import Database
 import Log
+import requests
+import json
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -13,8 +13,6 @@ logger = Log.get_logger()
 # Initialize bot and dispatcher
 bot = Bot(token=getenv('BOT_API_TOKEN'))
 dp = Dispatcher(bot)
-nlp = NLP()
-
 
 @dp.message_handler(commands=['start', 'help'])
 async def send_welcome(message: types.Message):
@@ -27,18 +25,19 @@ async def send_welcome(message: types.Message):
 @dp.channel_post_handler()
 @dp.message_handler()
 async def answer(message: types.Message):
-    logger.info(f'New message received from {message.chat.id}')
-    Database.create_new_chat_if_needed(message.chat.id)
-    history = Database.get_messages(message.chat.id)
-    if history and len(history) > 500:
-        Database.update_conversation(message.chat.id, None) 
-        await message.answer("Так о чем это мы? Давай начнем сначала. Напиши что-нибудь.")
-        return
-    answer, new_history = nlp.get_answer_ru(message.text, history)
-    Database.update_conversation(message.chat.id, new_history)  
-    await message.answer(answer)
-
+    headers = {"Accept": "application/json",
+                'Content-Type': 'application/json'}
+    payload = {
+    "message": f"{message.text}",
+    "chat_id": f"{message.chat.id}"       
+    }
+    response = requests.post(f'{getenv("TALKER_HOST")}:{getenv("TALKER_PORT")}{getenv("TALKER_ENDPOINT")}', headers=headers,data=json.dumps(payload)).json()                   
+    await message.answer(response['text']) 
 
 if __name__ == '__main__':
     logger.info('Bot started successfuly')
-    executor.start_polling(dp, skip_updates=True)
+    try:
+        executor.start_polling(dp, skip_updates=True)
+    except Exception as e:
+        logger.error(f"Error while getting updates. Error msg: {e}")
+        logger.exception(e)

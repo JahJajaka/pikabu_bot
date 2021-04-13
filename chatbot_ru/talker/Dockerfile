@@ -20,4 +20,4 @@ RUN mkdir /talker
 COPY ./ /talker/
 
 WORKDIR /talker
-CMD ["python3", "bot.py"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -4,11 +4,17 @@ services:
     build:
       network: host
       context: ../chatbot_ru/talker
-    volumes:
-        - type: bind
-          source: path_to_models
-          target: /talker/models
     env_file: 
-      - dev.env            
+      - dev.env 
+    ports:
+      - 8000:8000                  
     container_name: talker
-    tty: true
+  telegram:
+    build:
+      network: host
+      context: ../chatbot_ru/talker/telegram
+    env_file: 
+      - dev.env
+    depends_on: 
+      - talker           
+    container_name: telegram

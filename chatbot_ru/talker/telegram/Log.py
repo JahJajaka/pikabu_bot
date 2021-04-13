@@ -1,7 +1,8 @@
 import logging
 from logging.handlers import RotatingFileHandler
 
-def get_logger(logfile='/var/log/talker.log'):
+
+def get_logger(logfile='/var/log/telegram_bot.log'):
     """
 	Provide logger object bind to a file.
 	"""
