@@ -1,4 +1,5 @@
 fastapi[all]
 psycopg2
-pandas
-
+gunicorn
+torch
+transformers[torch]

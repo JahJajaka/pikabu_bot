@@ -2,19 +2,25 @@ version: "3.7"
 services:
   talker:
     build:
-      network: host
       context: ../chatbot_ru/talker
     env_file: 
       - dev.env 
     ports:
-      - 8000:8000                  
+      - 8000:8000                 
     container_name: talker
   telegram:
     build:
-      network: host
       context: ../chatbot_ru/talker/telegram
     env_file: 
       - dev.env
     depends_on: 
       - talker           
     container_name: telegram
+  nginx:
+    container_name: nginx
+    build:
+      context: ../chatbot_ru/talker/talker_nginx
+    ports:
+      - 80:80
+    depends_on:
+      - talker

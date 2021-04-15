@@ -12,7 +12,7 @@ logger = Log.get_logger()
 
 nlp = NLP()
 app = FastAPI()
-
+logger.info(f"Application started")
 @app.post("/message")
 async def answer(request: Request):
     request_data = json.loads(await request.body())

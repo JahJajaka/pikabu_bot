@@ -26,7 +26,9 @@ async def send_welcome(message: types.Message):
 @dp.message_handler()
 async def answer(message: types.Message):
     headers = {"Accept": "application/json",
-                'Content-Type': 'application/json'}
+                'Content-Type': 'application/json',
+                'Connection':'close'}
+            
     payload = {
     "message": f"{message.text}",
     "chat_id": f"{message.chat.id}"       
