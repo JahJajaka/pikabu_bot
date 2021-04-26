@@ -1,0 +1,6 @@
+inference_model = "onnx_int8" #pytorch|onnx|onnx_fp16|onnx_int8
+num_tokens_to_produce = 50
+no_repeat_ngram_size = 3
+top_k = 50
+top_p=0.9
+temperature = 0.6

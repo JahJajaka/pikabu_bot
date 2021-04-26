@@ -20,7 +20,9 @@ services:
     container_name: nginx
     build:
       context: ../chatbot_ru/talker/talker_nginx
+    env_file: 
+      - dev.env
     ports:
-      - 80:80
+      - 7999:7999
     depends_on:
       - talker
