@@ -123,7 +123,7 @@ class OnnxInference(BaseInference):
 class OnnxInferenceFp16(OnnxInference):
     def check_model_locally(self):
         if not Path(f'{self.local_onnx_path}/rugpt_optimized_fp16.onnx').exists():
-            OnnxInference.check_model_locally()              
+            OnnxInference.check_model_locally(self)              
             logger.info("Converting onnx model to half-precision model...")
             optimized_model = optimizer.optimize_model(os.path.join(self.local_onnx_path, 'rugpt.onnx'), model_type='gpt2', num_heads=self.config.n_head, hidden_size=self.config.n_embd)
             optimized_model.convert_model_float32_to_float16()
@@ -133,7 +133,7 @@ class OnnxInferenceFp16(OnnxInference):
 class OnnxInferenceInt8(OnnxInference):
     def check_model_locally(self):
         if not Path(f'{self.local_onnx_path}/rugpt_optimized_int8.onnx').exists():
-            OnnxInference.check_model_locally() 
+            OnnxInference.check_model_locally(self) 
             logger.info("Quantization of optimized ONNX model...") 
             QuantizeHelper.quantize_onnx_model(f'{self.local_onnx_path}/rugpt_optimized.onnx', f'{self.local_onnx_path}/rugpt_optimized_int8.onnx')
         return os.path.join(self.local_onnx_path, 'rugpt_optimized_int8.onnx')
