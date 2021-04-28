@@ -30,10 +30,10 @@ async def answer(message: types.Message):
                 'Connection':'close'}
             
     payload = {
-    "message": f"{message.text}",
+    "conv_text": f"{message.text}",
     "chat_id": f"{message.chat.id}"       
     }
-    response = requests.post(f'{getenv("TALKER_HOST")}:{getenv("TALKER_PORT")}{getenv("TALKER_ENDPOINT")}', headers=headers,data=json.dumps(payload)).json()                   
+    response = requests.post(f'{getenv("TALKER_HOST")}:{getenv("TALKER_PORT")}{getenv("TALKER_ENDPOINT")}', headers=headers,data=json.dumps(payload)).json()                  
     await message.answer(response['text']) 
 
 if __name__ == '__main__':

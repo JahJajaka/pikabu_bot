@@ -3,7 +3,7 @@ FROM python:3.8.6-slim-buster
 COPY requirements.txt /tmp/
 
 RUN apt-get update \
-    && apt-get install -y postgresql-server-dev-11 gcc python3-dev musl-dev \
+    && apt-get install -y python3-psycopg2 \
     && apt-get install -y gettext-base \
     && apt-get install -y bash \
     && rm -rf /var/lib/apt/lists
