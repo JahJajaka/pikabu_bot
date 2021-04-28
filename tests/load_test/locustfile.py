@@ -12,7 +12,7 @@ class QuickstartUser(HttpUser):
     def hello_world(self):      
         for col in self.test_df.columns:
             for message in self.test_df[col]:               
-                self.client.post("/message", json={"message":message, "chat_id": int(random.choice(self.test_df.columns))}, headers={'Connection':'close'})
+                self.client.post("/message", json={"conv_text":message, "chat_id": int(random.choice(self.test_df.columns))}, headers={'Connection':'close'})
                 time.sleep(1)
 
 
