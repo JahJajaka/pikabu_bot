@@ -1,3 +1,7 @@
+#vs settings
+.devcontainer/
+.vscode/
+
 #NLP models
 models/
 

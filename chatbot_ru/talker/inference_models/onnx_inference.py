@@ -1,3 +1,4 @@
+import enum
 import os
 import torch
 from torch.nn import functional as F
@@ -36,25 +37,22 @@ class OnnxInference(BaseInference):
         logger.info("Starting ONNX inference session...")            
         self.chat_model = onnxruntime.InferenceSession(model_path) 
 
-    def get_example_inputs(self, text, history):    
-        # encode the new user input, add parameters and return a tensor in Pytorch
-        new_user_input_ids = self.chat_tokenizer.encode(f"|0|{self.get_length_param(text)}|" + text + self.chat_tokenizer.eos_token +  "|1|1|", return_tensors="pt")
-        history_tensors = []
-        if history:
-                history_tensors= self.chat_tokenizer.encode(history + self.chat_tokenizer.eos_token, return_tensors="pt")          
-        # append the new user input tokens to the chat history  
-        bot_input_ids = torch.cat([history_tensors, new_user_input_ids], dim=-1) if history else new_user_input_ids
-
-        #input_ids = torch.tensor(bot_input_ids, dtype=torch.int64)
-        input_ids = bot_input_ids.long()
-        attention_mask = torch.tensor([np.ones(len(bot_input_ids[0]))], dtype=torch.float32)
+    def get_example_inputs(self, batch_text, batch_history):
+        text_batch = []
+        for text, history in zip(batch_text,batch_history):
+            comb_string = f"|0|{self.get_length_param(text)}|" + text + self.chat_tokenizer.eos_token +  "|1|1|"
+            if history:
+                comb_string = history + self.chat_tokenizer.eos_token + comb_string
+            text_batch.append(comb_string)            
+        encodings_dict = self.chat_tokenizer.batch_encode_plus(text_batch, padding=True)            
+        input_ids = torch.tensor(encodings_dict['input_ids'], dtype=torch.int64)
+        attention_mask = torch.tensor(encodings_dict['attention_mask'], dtype=torch.float32)
         position_ids = (attention_mask.long().cumsum(-1) - 1)
         position_ids.masked_fill_(position_ids < 0, 0)
 
         #Empty Past State for generating first word
         empty_past = []
         batch_size = input_ids.size(0)
-   
         past_shape = [2, batch_size, self.config.n_head, 0, self.config.n_embd // self.config.n_head]
         for i in range(self.config.n_layer):
             empty_past.append(torch.empty(past_shape).type(torch.float32).to(self.device))
@@ -79,9 +77,10 @@ class OnnxInference(BaseInference):
                                                                 return_numpy=False)
         return outputs
 
-    def get_answer_ru(self, text, history=None):        
+    def get_answer_ru(self, text, history=None):
         input_ids, attention_mask, position_ids, past = self.get_example_inputs(text, history)
         batch_size = input_ids.size(0)
+        logger.info(f'batch size: {batch_size}')
         has_eos = torch.zeros(batch_size, dtype=torch.bool)
         all_token_ids = input_ids.clone()
         updated_input_ids = input_ids.clone()
@@ -118,7 +117,12 @@ class OnnxInference(BaseInference):
             if torch.all(has_eos):
                 break
         #logger.info(f'Inference time only: {inference_time}')
-        return self.chat_tokenizer.decode(all_token_ids[:, input_ids.shape[-1]:][0], skip_special_tokens=True), self.chat_tokenizer.decode(all_token_ids[0], skip_special_tokens=True)
+        answer = []
+        new_history = []
+        for i, output in enumerate(all_token_ids):            
+            answer.append(self.chat_tokenizer.decode(output[input_ids.shape[-1]:], skip_special_tokens=True))
+            new_history.append(self.chat_tokenizer.decode(output, skip_special_tokens=True))
+        return answer, new_history
 
 class OnnxInferenceFp16(OnnxInference):
     def check_model_locally(self):

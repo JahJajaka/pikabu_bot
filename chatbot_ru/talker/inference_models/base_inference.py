@@ -11,9 +11,11 @@ logger = Log.get_logger()
 
 class BaseInference:
     def __init__(self):
+        #self.inference_config = toml.load('/workspace/talker/config.toml')
         self.inference_config = toml.load('config.toml')
         self.remote_path = 'Grossmend/rudialogpt3_medium_based_on_gpt2'      
         self.device = torch.device("cpu")
+        #base_path = '/workspace/models/rugpt'
         base_path = '/talker/models/rugpt'
         self.local_model_path = f'{base_path}/model'
         self.local_tokenizer_path = f'{base_path}/model'
@@ -21,6 +23,8 @@ class BaseInference:
         self.config = AutoConfig.from_pretrained(self.local_model_path)          
         self.chat_model = None
         self.chat_tokenizer = self._check_tokenizer_exists()
+        self.chat_tokenizer.padding_side = "left"
+        self.chat_tokenizer.pad_token = self.chat_tokenizer.eos_token 
  
 
     def check_pytorch_model_exists(self):
