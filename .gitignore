@@ -1,3 +1,12 @@
+  
+#vs settings
+.devcontainer/
+.vscode/
+
+#aws creds
+*.pem
+*.csv
+
 #NLP models
 models/
 

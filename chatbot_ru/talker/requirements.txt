@@ -1,6 +1,6 @@
 fastapi[all]
 fastapi-utils
-psycopg2
+psycopg2-binary
 gunicorn
 --find-links https://download.pytorch.org/whl/torch_stable.html
 torch==1.8.1+cpu
