@@ -1,4 +1,5 @@
 import torch
+#torch.cuda.current_device()
 from typing import Iterable, List
 class TopKLogitsWarper:
     r"""

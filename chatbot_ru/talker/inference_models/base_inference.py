@@ -1,5 +1,6 @@
 
 import torch
+#torch.cuda.current_device()
 from transformers import AutoTokenizer, AutoConfig
 from pathlib import Path
 import logging
@@ -15,8 +16,8 @@ class BaseInference:
         self.inference_config = toml.load('config.toml')
         self.remote_path = 'Grossmend/rudialogpt3_medium_based_on_gpt2'      
         self.device = torch.device(self.inference_config['device'])
-        if self.device == 'gpu':
-            logger.info(f'Number of gpu devices ready: {torch.cuda.device_count()}. Device name: {torch.cuda.get_device_name(0)} ')
+        if self.device == 'cuda':
+            logger.debug(f'Number of gpu devices ready: {torch.cuda.device_count()}. Device name: {torch.cuda.get_device_name(0)} ')
         #base_path = '/workspace/models/rugpt'
         base_path = '/talker/models/rugpt'
         self.local_model_path = f'{base_path}/model'

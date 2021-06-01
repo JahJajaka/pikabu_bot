@@ -1,5 +1,5 @@
 inference_model = "onnx_int8" #pytorch|onnx|onnx_fp16|onnx_int8
-device = gpu #cpu|gpu
+device = "cuda" #cpu|cuda
 num_tokens_to_produce = 50
 no_repeat_ngram_size = 3
 top_k = 50

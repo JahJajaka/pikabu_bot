@@ -1,6 +1,7 @@
 import enum
 import os
 import torch
+#torch.cuda.current_device()
 from torch.nn import functional as F
 import onnxruntime 
 from onnxruntime.transformers import optimizer

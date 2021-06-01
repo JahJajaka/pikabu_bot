@@ -3,6 +3,11 @@ services:
   talker:
     build:
       context: ../chatbot_ru/talker
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
     env_file: 
       - dev.env 
     ports:

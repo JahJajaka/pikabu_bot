@@ -1,4 +1,5 @@
 import torch
+#torch.cuda.current_device()
 from transformers import AutoModelForCausalLM
 from inference_models.base_inference import BaseInference
 import logging
