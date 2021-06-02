@@ -2,12 +2,8 @@ fastapi[all]
 fastapi-utils
 psycopg2-binary
 gunicorn
---find-links https://download.pytorch.org/whl/torch_stable.html
-torch
-torchvision
-torchaudio
 transformers[torch]
-onnxruntime
+onnxruntime-gpu
 onnx
 onnxconverter-common
 coloredlogs

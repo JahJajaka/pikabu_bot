@@ -1,4 +1,4 @@
-FROM python:3.8.6-slim-buster
+FROM nvcr.io/nvidia/pytorch:21.05-py3
 
 COPY requirements.txt /tmp/
 
@@ -17,6 +17,5 @@ RUN mkdir /talker
 COPY ./ /talker/
 
 WORKDIR /talker
-#RUN ln -s /usr/lib/x86_64-linux-gnu/libtinfo.so.6 /usr/lib/libtinfo.so.5
 #CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 CMD ["gunicorn", "-w", "1", "-k", "uvicorn.workers.UvicornWorker", "main:app", "--bind", "0.0.0.0:8000", "--timeout", "400"]

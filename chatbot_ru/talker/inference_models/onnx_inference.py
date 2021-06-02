@@ -62,7 +62,7 @@ class OnnxInference(BaseInference):
         return input_ids, attention_mask, position_ids, empty_past
 
     def inference_with_io_binding(self, input_ids, position_ids, attention_mask, past):
-        #logger.info(f'past sequence length: {past[0].size(3)}, sequence length: {input_ids.size(1)}')
+        logger.info(f'past sequence length: {past[0].size(3)}, sequence length: {input_ids.size(1)}')
         output_shapes = Gpt2Helper.get_output_shapes(batch_size=input_ids.size(0),
                                                     past_sequence_length=past[0].size(3),
                                                     sequence_length=input_ids.size(1),
@@ -98,9 +98,11 @@ class OnnxInference(BaseInference):
             next_token_logits = TopPLogitsWarper(self.inference_config['top_p'])(next_token_logits)
             #next_tokens = torch.argmax(next_token_logits, dim=-1)
             probs = F.softmax(next_token_logits, dim=-1)
-            next_tokens = torch.multinomial(probs, num_samples=1).squeeze(1)            
-            #logger.info(f'next tokens softmax: {next_tokens}')
-            has_eos = has_eos | (next_tokens == self.chat_tokenizer.eos_token_id)
+            next_tokens = torch.multinomial(probs, num_samples=1).squeeze(1)
+            logger.info(f'next tokens softmax: {next_tokens}')
+            cpu_tokens = next_tokens.to(torch.device("cpu"))
+            logger.info(f'next tokens softmax cpu: {cpu_tokens}')
+            has_eos = has_eos | (cpu_tokens == self.chat_tokenizer.eos_token_id)
             tokens_to_add = next_tokens.masked_fill(has_eos, self.chat_tokenizer.eos_token_id)
             all_token_ids = torch.cat([all_token_ids, tokens_to_add.unsqueeze(-1)], dim=-1)
 
