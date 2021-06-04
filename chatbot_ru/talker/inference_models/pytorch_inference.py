@@ -4,6 +4,7 @@ from transformers import AutoModelForCausalLM
 from inference_models.base_inference import BaseInference
 import logging
 import Log
+from timeit import default_timer as timer
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = Log.get_logger()
@@ -16,20 +17,32 @@ class PytorchInference(BaseInference):
 
     def start_inference(self, model_path):
         logger.info(f'Prepare local PyTorch model for inference...')
-        self.chat_model = AutoModelForCausalLM.from_pretrained(model_path)
+        with torch.no_grad():
+            self.chat_model = AutoModelForCausalLM.from_pretrained(model_path).to(self.device)
         if model_path == self.remote_path: self.chat_model.save_pretrained(self.local_model_path)
 
-    def get_answer_ru(self, text, history):        
+    @torch.no_grad()
+    def get_answer_ru(self, batch_text, batch_history):
         # encode the new user input, add parameters and return a tensor in Pytorch
-        new_user_input_ids = self.chat_tokenizer.encode(f"|0|{self.get_length_param(text)}|" + text + self.chat_tokenizer.eos_token +  "|1|1|", return_tensors="pt")
-        history_tensors = []
-        if history:
-                history_tensors= self.chat_tokenizer.encode(history + self.chat_tokenizer.eos_token, return_tensors="pt")          
+        #new_user_input_ids = self.chat_tokenizer.encode(f"|0|{self.get_length_param(text)}|" + text + self.chat_tokenizer.eos_token +  "|1|1|", return_tensors="pt")
+        #history_tensors = []
+        #if history:
+                #history_tensors= self.chat_tokenizer.encode(history + self.chat_tokenizer.eos_token, return_tensors="pt")
         # append the new user input tokens to the chat history  
-        bot_input_ids = torch.cat([history_tensors, new_user_input_ids], dim=-1) if history else new_user_input_ids
+        #bot_input_ids = torch.cat([history_tensors, new_user_input_ids], dim=-1) if history else new_user_input_ids
         # generated a response
+        text_batch = []
+        for text, history in zip(batch_text,batch_history):
+            comb_string = f"|0|{self.get_length_param(text)}|" + text + self.chat_tokenizer.eos_token +  "|1|1|"
+            if history:
+                comb_string = history + self.chat_tokenizer.eos_token + comb_string
+            text_batch.append(comb_string)
+        encodings_dict = self.chat_tokenizer.batch_encode_plus(text_batch, padding=True)
+        input_ids = torch.tensor(encodings_dict['input_ids'], dtype=torch.int64).to(self.device)
+        #logger.info(f'Pytorch input ids: {input_ids}')
+        start = timer()
         chat_history_ids = self.chat_model.generate(
-            bot_input_ids,
+            input_ids,
             num_return_sequences=1,
             max_length=512,
             no_repeat_ngram_size=self.inference_config['no_repeat_ngram_size'],
@@ -41,8 +54,14 @@ class PytorchInference(BaseInference):
             eos_token_id=self.chat_tokenizer.eos_token_id,
             unk_token_id=self.chat_tokenizer.unk_token_id,
             pad_token_id=self.chat_tokenizer.pad_token_id,
-            device='cpu',
+            device=self.device,
         )
-
-        # pretty print last ouput tokens from bot
-        return self.chat_tokenizer.decode(chat_history_ids[:, bot_input_ids.shape[-1]:][0], skip_special_tokens=True), self.chat_tokenizer.decode(chat_history_ids[0], skip_special_tokens=True)
+        end = timer()
+        logger.info(f'Pytorch inference time only: {end - start}')
+        answer = []
+        new_history = []
+        for i, output in enumerate(chat_history_ids):
+            answer.append(self.chat_tokenizer.decode(output[input_ids.shape[-1]:], skip_special_tokens=True))
+            new_history.append(self.chat_tokenizer.decode(output, skip_special_tokens=True))
+        torch.cuda.empty_cache()
+        return answer , new_history

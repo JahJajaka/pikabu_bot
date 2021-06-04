@@ -15,9 +15,9 @@ class BaseInference:
         #self.inference_config = toml.load('/workspace/talker/config.toml')
         self.inference_config = toml.load('config.toml')
         self.remote_path = 'Grossmend/rudialogpt3_medium_based_on_gpt2'      
-        self.device = torch.device(self.inference_config['device'])
+        self.device = str(torch.device(self.inference_config['device']))
         logger.info(f'Device detected by Pytorch: {self.device}')
-        if str(self.device) == 'cuda':
+        if self.device == 'cuda':
             logger.info(f'Number of gpu devices ready: {torch.cuda.device_count()}. Device name: {torch.cuda.get_device_name(0)} ')
         #base_path = '/workspace/models/rugpt'
         base_path = '/talker/models/rugpt'

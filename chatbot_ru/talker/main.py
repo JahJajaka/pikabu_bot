@@ -24,8 +24,8 @@ requests_queue = Queue()
 logger.info(f"Application started")
 
 
-BATCH_SIZE = 16
-BATCH_TIMEOUT = 2
+BATCH_SIZE = 3
+BATCH_TIMEOUT = 0.5
 CHECK_INTERVAL = 0.01
 
 def get_db():
@@ -68,6 +68,7 @@ def handle_requests_by_batch():
                 requests_batch.append(requests_queue.get(timeout=CHECK_INTERVAL))
             except Empty:
                 continue
+        logger.info(f'Batch size: {len(requests_batch)}')
         batch_inputs = [request['input'] for request in requests_batch]
         batch_history = [request['history'] for request in requests_batch]
         start = timer()

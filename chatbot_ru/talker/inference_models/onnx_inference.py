@@ -1,7 +1,6 @@
 import enum
 import os
 import torch
-#torch.cuda.current_device()
 from torch.nn import functional as F
 import onnxruntime 
 from onnxruntime.transformers import optimizer
@@ -11,7 +10,7 @@ import numpy as np
 import logging
 import Log
 from inference_models.gen_wrappers import TopKLogitsWarper, TemperatureLogitsWarper, TopPLogitsWarper, NoRepeatNGramLogitsProcessor
-#from timeit import default_timer as timer
+from timeit import default_timer as timer
 from onnxruntime.transformers.quantize_helper import QuantizeHelper
 from inference_models.base_inference import BaseInference
 # Configure logging
@@ -35,7 +34,7 @@ class OnnxInference(BaseInference):
         return os.path.join(self.local_onnx_path, 'rugpt_optimized.onnx')
 
     def start_inference(self, model_path):
-        logger.info("Starting ONNX inference session...")            
+        logger.info(f"Starting ONNX inference session on {onnxruntime.get_device()}...")
         self.chat_model = onnxruntime.InferenceSession(model_path) 
 
     def get_example_inputs(self, batch_text, batch_history):
@@ -62,7 +61,7 @@ class OnnxInference(BaseInference):
         return input_ids, attention_mask, position_ids, empty_past
 
     def inference_with_io_binding(self, input_ids, position_ids, attention_mask, past):
-        logger.info(f'past sequence length: {past[0].size(3)}, sequence length: {input_ids.size(1)}')
+        #logger.info(f'past sequence length: {past[0].size(3)}, sequence length: {input_ids.size(1)}')
         output_shapes = Gpt2Helper.get_output_shapes(batch_size=input_ids.size(0),
                                                     past_sequence_length=past[0].size(3),
                                                     sequence_length=input_ids.size(1),
@@ -78,20 +77,24 @@ class OnnxInference(BaseInference):
                                                                 return_numpy=False)
         return outputs
 
+    @torch.no_grad()
     def get_answer_ru(self, text, history=None):
+        start2 = timer()
         input_ids, attention_mask, position_ids, past = self.get_example_inputs(text, history)
         batch_size = input_ids.size(0)
         logger.info(f'batch size: {batch_size}')
         has_eos = torch.zeros(batch_size, dtype=torch.bool)
         all_token_ids = input_ids.clone()
         updated_input_ids = input_ids.clone()
-        #inference_time = float(0)
+        end2 = timer()
+        logger.info(f'Get Example inputs: {end2 - start2}')
+        inference_time = float(0)
         for _ in range(self.inference_config['num_tokens_to_produce']):
-            #start = timer()
+            start = timer()
             outputs = self.inference_with_io_binding(updated_input_ids, position_ids, attention_mask, past)
-            #end = timer()
-            #inference_time += end - start
-            next_token_logits = outputs[0][:, -1, :]
+            end = timer()
+            inference_time += end - start
+            next_token_logits = outputs[0][:, -1, :].detach().clone().to(torch.device("cpu"))
             next_token_logits = NoRepeatNGramLogitsProcessor(self.inference_config['no_repeat_ngram_size'])(all_token_ids, next_token_logits)
             next_token_logits = TemperatureLogitsWarper(self.inference_config['temperature'])(next_token_logits)
             next_token_logits = TopKLogitsWarper(self.inference_config['top_k'])(next_token_logits)
@@ -99,10 +102,8 @@ class OnnxInference(BaseInference):
             #next_tokens = torch.argmax(next_token_logits, dim=-1)
             probs = F.softmax(next_token_logits, dim=-1)
             next_tokens = torch.multinomial(probs, num_samples=1).squeeze(1)
-            logger.info(f'next tokens softmax: {next_tokens}')
-            cpu_tokens = next_tokens.to(torch.device("cpu"))
-            logger.info(f'next tokens softmax cpu: {cpu_tokens}')
-            has_eos = has_eos | (cpu_tokens == self.chat_tokenizer.eos_token_id)
+            #logger.info(f'next tokens softmax: {next_tokens}')
+            has_eos = has_eos | (next_tokens == self.chat_tokenizer.eos_token_id)
             tokens_to_add = next_tokens.masked_fill(has_eos, self.chat_tokenizer.eos_token_id)
             all_token_ids = torch.cat([all_token_ids, tokens_to_add.unsqueeze(-1)], dim=-1)
 
@@ -119,7 +120,8 @@ class OnnxInference(BaseInference):
             #logger.info(f'past sequence: {len(past)}')
             if torch.all(has_eos):
                 break
-        #logger.info(f'Inference time only: {inference_time}')
+        torch.cuda.empty_cache()
+        logger.info(f'Inference time only: {inference_time}')
         answer = []
         new_history = []
         for i, output in enumerate(all_token_ids):            

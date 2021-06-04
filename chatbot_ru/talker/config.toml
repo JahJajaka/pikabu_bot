@@ -1,4 +1,4 @@
-inference_model = "onnx_int8" #pytorch|onnx|onnx_fp16|onnx_int8
+inference_model = "pytorch" #pytorch|onnx|onnx_fp16|onnx_int8
 device = "cuda" #cpu|cuda
 num_tokens_to_produce = 50
 no_repeat_ngram_size = 3
