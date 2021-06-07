@@ -23,14 +23,6 @@ class PytorchInference(BaseInference):
 
     @torch.no_grad()
     def get_answer_ru(self, batch_text, batch_history):
-        # encode the new user input, add parameters and return a tensor in Pytorch
-        #new_user_input_ids = self.chat_tokenizer.encode(f"|0|{self.get_length_param(text)}|" + text + self.chat_tokenizer.eos_token +  "|1|1|", return_tensors="pt")
-        #history_tensors = []
-        #if history:
-                #history_tensors= self.chat_tokenizer.encode(history + self.chat_tokenizer.eos_token, return_tensors="pt")
-        # append the new user input tokens to the chat history  
-        #bot_input_ids = torch.cat([history_tensors, new_user_input_ids], dim=-1) if history else new_user_input_ids
-        # generated a response
         text_batch = []
         for text, history in zip(batch_text,batch_history):
             comb_string = f"|0|{self.get_length_param(text)}|" + text + self.chat_tokenizer.eos_token +  "|1|1|"
@@ -38,6 +30,7 @@ class PytorchInference(BaseInference):
                 comb_string = history + self.chat_tokenizer.eos_token + comb_string
             text_batch.append(comb_string)
         encodings_dict = self.chat_tokenizer.batch_encode_plus(text_batch, padding=True)
+        input_ids_shape = torch.tensor(encodings_dict['input_ids'], dtype=torch.int64).shape[-1]
         input_ids = torch.tensor(encodings_dict['input_ids'], dtype=torch.int64).to(self.device)
         #logger.info(f'Pytorch input ids: {input_ids}')
         start = timer()
@@ -60,8 +53,9 @@ class PytorchInference(BaseInference):
         logger.info(f'Pytorch inference time only: {end - start}')
         answer = []
         new_history = []
-        for i, output in enumerate(chat_history_ids):
-            answer.append(self.chat_tokenizer.decode(output[input_ids.shape[-1]:], skip_special_tokens=True))
+        history_ids = chat_history_ids.detach().clone()
+        for i, output in enumerate(history_ids):
+            answer.append(self.chat_tokenizer.decode(output[input_ids_shape:], skip_special_tokens=True))
             new_history.append(self.chat_tokenizer.decode(output, skip_special_tokens=True))
         torch.cuda.empty_cache()
         return answer , new_history
