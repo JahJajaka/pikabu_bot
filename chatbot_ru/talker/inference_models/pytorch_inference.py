@@ -38,6 +38,7 @@ class PytorchInference(BaseInference):
                 comb_string = history + self.chat_tokenizer.eos_token + comb_string
             text_batch.append(comb_string)
         encodings_dict = self.chat_tokenizer.batch_encode_plus(text_batch, padding=True)
+        input_ids_shape = torch.tensor(encodings_dict['input_ids'], dtype=torch.int64).shape[-1]
         input_ids = torch.tensor(encodings_dict['input_ids'], dtype=torch.int64).to(self.device)
         #logger.info(f'Pytorch input ids: {input_ids}')
         start = timer()
@@ -60,8 +61,9 @@ class PytorchInference(BaseInference):
         logger.info(f'Pytorch inference time only: {end - start}')
         answer = []
         new_history = []
-        for i, output in enumerate(chat_history_ids):
-            answer.append(self.chat_tokenizer.decode(output[input_ids.shape[-1]:], skip_special_tokens=True))
-            new_history.append(self.chat_tokenizer.decode(output, skip_special_tokens=True))
+        history_ids = chat_history_ids.detach().clone()
         torch.cuda.empty_cache()
+        for i, output in enumerate(history_ids):
+            answer.append(self.chat_tokenizer.decode(output[input_ids_shape:], skip_special_tokens=True))
+            new_history.append(self.chat_tokenizer.decode(output, skip_special_tokens=True))
         return answer , new_history

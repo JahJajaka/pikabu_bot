@@ -8,3 +8,4 @@ onnx
 onnxconverter-common
 coloredlogs
 toml
+sympy
