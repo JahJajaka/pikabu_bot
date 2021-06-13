@@ -18,15 +18,18 @@ inf_config = toml.load('config.toml')
 logging.basicConfig(level=logging.INFO)
 logger = Log.get_logger()
 
+BATCH_SIZE = 3
+BATCH_TIMEOUT = 0.5
+CHECK_INTERVAL = 0.01
+
+
 model = ModelLoader().load_model(NLP(), inf_config['inference_model'] )
 app = FastAPI()
 requests_queue = Queue()
 logger.info(f"Application started")
 
 
-BATCH_SIZE = 3
-BATCH_TIMEOUT = 0.5
-CHECK_INTERVAL = 0.01
+
 
 def get_db():
     db_ = database.SessionLocal()
@@ -45,10 +48,9 @@ def answer(conv: schemas.Conversation, db_: Session = Depends(get_db)):
         history = crud.get_chat(db=db_, chat_id=conv.chat_id).conv_text
         if history and len(history) > 500:
             crud.update_conversation(db=db_, chat_id=conv.chat_id, conv_text=None) 
-            return {"text": "Так о чем это мы? Давай начнем сначала. Напиши что-нибудь."}  
+            return {"text": "Так о чем это мы? Давай начнем сначала. Напиши что-нибудь."}
         request = {'input': conv.conv_text, 'history': history, 'time': time.time()}
         requests_queue.put(request)
-
         while 'output' not in request:
             time.sleep(CHECK_INTERVAL)
         crud.update_conversation(db=db_, chat_id=conv.chat_id, conv_text=request['new_history'])  
@@ -60,12 +62,13 @@ def answer(conv: schemas.Conversation, db_: Session = Depends(get_db)):
 def handle_requests_by_batch():
     while True:
         requests_batch = []
-        while not (
-            len(requests_batch) > BATCH_SIZE or
-            (len(requests_batch) > 0 and time.time() - requests_batch[0]['time'] > BATCH_TIMEOUT)
-        ):
+        while (
+            len(requests_batch) < BATCH_SIZE or
+            (len(requests_batch) > 0 and time.time() - requests_batch[0]['time'] < BATCH_TIMEOUT)):
             try:
                 requests_batch.append(requests_queue.get(timeout=CHECK_INTERVAL))
+                if len(requests_batch) >= BATCH_SIZE:
+                    break
             except Empty:
                 continue
         logger.info(f'Batch size: {len(requests_batch)}')
