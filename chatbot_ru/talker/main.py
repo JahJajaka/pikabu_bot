@@ -62,9 +62,9 @@ def answer(conv: schemas.Conversation, db_: Session = Depends(get_db)):
 def handle_requests_by_batch():
     while True:
         requests_batch = []
-        while (
-            len(requests_batch) < BATCH_SIZE or
-            (len(requests_batch) > 0 and time.time() - requests_batch[0]['time'] < BATCH_TIMEOUT)):
+        while not (
+            len(requests_batch) > BATCH_SIZE or
+            (len(requests_batch) > 0 and time.time() - requests_batch[0]['time'] > BATCH_TIMEOUT)):
             try:
                 requests_batch.append(requests_queue.get(timeout=CHECK_INTERVAL))
                 if len(requests_batch) >= BATCH_SIZE:
