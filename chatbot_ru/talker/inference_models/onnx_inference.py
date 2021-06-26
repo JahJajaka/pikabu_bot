@@ -26,8 +26,9 @@ class OnnxInference(BaseInference):
             if not self.check_pytorch_model_exists() :
                 raise FileNotFoundError(f'Cannot find Pytorch model for conversion at: {self.local_model_path}. Setup "pytorch" for inference_model first.')
             logger.info("Converting Pytorch model to ONNX model...")
-            self.chat_model = MyGPT2LMHeadModel.from_pretrained(self.local_model_path)
+            self.chat_model = MyGPT2LMHeadModel.from_pretrained(self.local_model_path).to(self.device)
             Gpt2Helper.export_onnx(self.chat_model, self.device, os.path.join(self.local_onnx_path, 'rugpt.onnx'))
+        if not Path(f'{self.local_onnx_path}/rugpt_optimized.onnx').exists():
             logger.info("Optimizing onnx model...")
             optimized_model = optimizer.optimize_model(os.path.join(self.local_onnx_path, 'rugpt.onnx'), model_type='gpt2', num_heads=self.config.n_head, hidden_size=self.config.n_embd)
             optimized_model.save_model_to_file(os.path.join(self.local_onnx_path, 'rugpt_optimized.onnx'))
@@ -35,7 +36,11 @@ class OnnxInference(BaseInference):
 
     def start_inference(self, model_path):
         logger.info(f"Starting ONNX inference session on {onnxruntime.get_device()}...")
-        self.chat_model = onnxruntime.InferenceSession(model_path) 
+        providers = [
+            'CUDAExecutionProvider',
+            'CPUExecutionProvider',
+        ]
+        self.chat_model = onnxruntime.InferenceSession(model_path, providers=providers)
 
     def get_example_inputs(self, batch_text, batch_history):
         text_batch = []
@@ -45,8 +50,8 @@ class OnnxInference(BaseInference):
                 comb_string = history + self.chat_tokenizer.eos_token + comb_string
             text_batch.append(comb_string)            
         encodings_dict = self.chat_tokenizer.batch_encode_plus(text_batch, padding=True)            
-        input_ids = torch.tensor(encodings_dict['input_ids'], dtype=torch.int64)
-        attention_mask = torch.tensor(encodings_dict['attention_mask'], dtype=torch.float32)
+        input_ids = torch.tensor(encodings_dict['input_ids'], dtype=torch.int64).to(torch.device("cpu"))
+        attention_mask = torch.tensor(encodings_dict['attention_mask'], dtype=torch.float32).to(torch.device("cpu"))
         position_ids = (attention_mask.long().cumsum(-1) - 1)
         position_ids.masked_fill_(position_ids < 0, 0)
 
@@ -55,9 +60,9 @@ class OnnxInference(BaseInference):
         batch_size = input_ids.size(0)
         past_shape = [2, batch_size, self.config.n_head, 0, self.config.n_embd // self.config.n_head]
         for i in range(self.config.n_layer):
-            empty_past.append(torch.empty(past_shape).type(torch.float32).to(self.device))
+            empty_past.append(torch.empty(past_shape).type(torch.float32).to(torch.device("cpu")))
 
-        
+        torch.cuda.empty_cache()
         return input_ids, attention_mask, position_ids, empty_past
 
     def inference_with_io_binding(self, input_ids, position_ids, attention_mask, past):
@@ -75,19 +80,17 @@ class OnnxInference(BaseInference):
 
         outputs = Gpt2Helper.get_outputs_from_io_binding_buffer(self.chat_model, output_buffers, output_shapes,
                                                                 return_numpy=False)
+        torch.cuda.empty_cache()
         return outputs
 
     @torch.no_grad()
     def get_answer_ru(self, text, history=None):
-        start2 = timer()
         input_ids, attention_mask, position_ids, past = self.get_example_inputs(text, history)
         batch_size = input_ids.size(0)
         logger.info(f'batch size: {batch_size}')
         has_eos = torch.zeros(batch_size, dtype=torch.bool)
         all_token_ids = input_ids.clone()
         updated_input_ids = input_ids.clone()
-        end2 = timer()
-        logger.info(f'Get Example inputs: {end2 - start2}')
         inference_time = float(0)
         for _ in range(self.inference_config['num_tokens_to_produce']):
             start = timer()
@@ -116,7 +119,7 @@ class OnnxInference(BaseInference):
             past = []
             for i in range(self.config.n_layer):
                 past_i = torch.from_numpy(outputs[i + 1]) if isinstance(outputs[i + 1], np.ndarray) else outputs[i + 1].clone().detach()
-                past.append(past_i.to(self.device))
+                past.append(past_i.to(torch.device("cpu")))
             #logger.info(f'past sequence: {len(past)}')
             if torch.all(has_eos):
                 break
@@ -132,11 +135,18 @@ class OnnxInference(BaseInference):
 class OnnxInferenceFp16(OnnxInference):
     def check_model_locally(self):
         if not Path(f'{self.local_onnx_path}/rugpt_optimized_fp16.onnx').exists():
-            OnnxInference.check_model_locally(self)              
+            #OnnxInference.check_model_locally(self)
             logger.info("Converting onnx model to half-precision model...")
-            optimized_model = optimizer.optimize_model(os.path.join(self.local_onnx_path, 'rugpt.onnx'), model_type='gpt2', num_heads=self.config.n_head, hidden_size=self.config.n_embd)
-            optimized_model.convert_model_float32_to_float16()
-            optimized_model.save_model_to_file(os.path.join(self.local_onnx_path, 'rugpt_optimized_fp16.onnx'))            
+            if not Path(f'{self.local_onnx_path}/rugpt.onnx').exists():
+                self.chat_model = MyGPT2LMHeadModel.from_pretrained(self.local_model_path).to(self.device)
+                Gpt2Helper.export_onnx(self.chat_model, self.device, os.path.join(self.local_onnx_path, 'rugpt.onnx'))
+
+            Gpt2Helper.optimize_onnx(os.path.join(self.local_onnx_path, 'rugpt.onnx'),
+                                                       os.path.join(self.local_onnx_path, 'rugpt_optimized_fp16.onnx'),
+                                                       1,
+                                                       self.config.n_head,
+                                                       self.config.n_embd)
+
         return os.path.join(self.local_onnx_path, 'rugpt_optimized_fp16.onnx')
 
 class OnnxInferenceInt8(OnnxInference):
@@ -144,5 +154,6 @@ class OnnxInferenceInt8(OnnxInference):
         if not Path(f'{self.local_onnx_path}/rugpt_optimized_int8.onnx').exists():
             OnnxInference.check_model_locally(self) 
             logger.info("Quantization of optimized ONNX model...") 
-            QuantizeHelper.quantize_onnx_model(f'{self.local_onnx_path}/rugpt_optimized.onnx', f'{self.local_onnx_path}/rugpt_optimized_int8.onnx')
+            from onnxruntime.quantization import quantize_dynamic, QuantType
+            quantize_dynamic(f'{self.local_onnx_path}/rugpt.onnx', f'{self.local_onnx_path}/rugpt_optimized_int8.onnx')
         return os.path.join(self.local_onnx_path, 'rugpt_optimized_int8.onnx')

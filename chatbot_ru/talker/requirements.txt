@@ -4,6 +4,7 @@ psycopg2-binary
 gunicorn
 transformers[torch]
 onnxruntime-gpu
+#onnxruntime
 onnx
 onnxconverter-common
 coloredlogs

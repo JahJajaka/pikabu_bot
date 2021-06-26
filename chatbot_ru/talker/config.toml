@@ -1,3 +1,5 @@
+#if no onnx model exists run onnx on cpu for initial convertion with uvicorn serving instead of gunicorn
+#onnx is not converting to quantized model while on wsl2
 inference_model = "pytorch" #pytorch|onnx|onnx_fp16|onnx_int8
 device = "cuda" #cpu|cuda
 num_tokens_to_produce = 50
