@@ -38,6 +38,15 @@ def get_db():
     finally:
         db_.close()
 
+def cutoff_from_start(message: str, history: str) -> str:
+    turns = [f'|0|{item}' for item in history.split('|0|')[1:]]
+    max_result_length = 11+len(message)+inf_config['num_tokens_to_produce']
+    cutoff_symbols = 0
+    for item in turns:
+        cutoff_symbols += len(item)
+        if cutoff_symbols >= max_result_length:
+            break
+    return history[cutoff_symbols:]
 
 @app.post("/message")
 def answer(conv: schemas.Conversation, db_: Session = Depends(get_db)):
@@ -47,8 +56,7 @@ def answer(conv: schemas.Conversation, db_: Session = Depends(get_db)):
             crud.create_chat(db=db_, conv=conv)
         history = crud.get_chat(db=db_, chat_id=conv.chat_id).conv_text
         if history and len(history) > 500:
-            crud.update_conversation(db=db_, chat_id=conv.chat_id, conv_text=None) 
-            return {"text": "Так о чем это мы? Давай начнем сначала. Напиши что-нибудь."}
+            history = cutoff_from_start(conv.conv_text, history)
         request = {'input': conv.conv_text, 'history': history, 'time': time.time()}
         requests_queue.put(request)
         while 'output' not in request:
