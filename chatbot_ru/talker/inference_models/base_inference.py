@@ -1,4 +1,4 @@
-
+from os import path
 import torch
 from transformers import AutoTokenizer, AutoConfig
 from pathlib import Path
@@ -11,10 +11,11 @@ logger = Log.get_logger()
 
 class BaseInference:
     def __init__(self):
-        self.inference_config = toml.load('config.toml')
+        config_file_path = path.join(path.dirname(path.dirname(path.abspath(__file__))), 'config.toml')
+        self.inference_config = toml.load(config_file_path)
         self.remote_path = 'Grossmend/rudialogpt3_medium_based_on_gpt2'      
         self.device = torch.device("cpu")
-        base_path = '/talker/models/rugpt'
+        base_path = path.join(path.dirname(path.dirname(path.dirname(path.abspath(__file__)))), 'models/rugpt')
         self.local_model_path = f'{base_path}/model'
         self.local_tokenizer_path = f'{base_path}/model'
         self.local_onnx_path = f'{base_path}/model/onnx'
