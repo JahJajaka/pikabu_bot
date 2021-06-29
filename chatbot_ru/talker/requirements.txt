@@ -2,11 +2,11 @@ fastapi[all]
 fastapi-utils
 psycopg2-binary
 gunicorn
-transformers[torch]
-onnxruntime-gpu
+#transformers[torch]
+#onnxruntime-gpu
 #onnxruntime
-onnx
-onnxconverter-common
+#onnx
+#onnxconverter-common
 coloredlogs
 toml
 sympy

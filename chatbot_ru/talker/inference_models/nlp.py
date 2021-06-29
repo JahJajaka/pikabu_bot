@@ -1,5 +1,4 @@
-from inference_models.pytorch_inference import PytorchInference
-from inference_models.onnx_inference import OnnxInference, OnnxInferenceFp16, OnnxInferenceInt8
+from inference_models.tensorrt_inference import TensorRTInference
 
 class NLP:
     def load_model(self, model_type):
@@ -14,14 +13,8 @@ class ModelLoader:
 
 class InfModelFactory:
     def get_model(self, inf_model):
-        if inf_model == 'pytorch':
-            return PytorchInference()
-        elif inf_model in 'onnx':
-            return OnnxInference()
-        elif inf_model == 'onnx_fp16':
-            return OnnxInferenceFp16()
-        elif inf_model == 'onnx_int8':
-            return OnnxInferenceInt8()
+        if inf_model == 'tensorrt':
+            return TensorRTInference()
         else:
             raise ValueError(inf_model)
 factory = InfModelFactory()
