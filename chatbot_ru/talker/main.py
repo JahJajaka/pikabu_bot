@@ -51,6 +51,8 @@ def cutoff_from_start(message: str, history: str) -> str:
 @app.post("/message")
 def answer(conv: schemas.Conversation, db_: Session = Depends(get_db)):
     logger.info(f'New message received from {conv.chat_id}')
+    if len(conv.conv_text) > 200:
+        conv.conv_text = conv.conv_text[:200]
     try:
         if not crud.get_chat(db=db_, chat_id=conv.chat_id):
             crud.create_chat(db=db_, conv=conv)
